@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"log/slog"
 	"math/rand"
 	"strings"
@@ -9,7 +11,7 @@ import (
 )
 
 type Core struct {
-	sessions    map[string]Session
+	sessions    SessionRepo
 	users       map[string]User
 	collections map[string]string
 	csrfTokens  map[string]time.Time
@@ -18,6 +20,23 @@ type Core struct {
 }
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+func (core *Core) CheckRedisSessionsConnection() {
+	if !core.sessions.Connection {
+		fmt.Println("Redis connection lost")
+	}
+	ctx := context.Background()
+	for {
+		// Проверка соединения с Redis
+		_, err := core.sessions.sessionRedisClient.Ping(ctx).Result()
+		core.sessions.Connection = err != nil
+		if core.sessions.Connection {
+			fmt.Println("Redis connection active")
+		}
+		// Пауза на 15 секунд перед следующей проверкой
+		time.Sleep(15 * time.Second)
+	}
+}
 
 func (core *Core) CheckCsrfToken(token string) bool {
 	core.Mutex.RLock()
@@ -45,30 +64,31 @@ func (core *Core) CreateCsrfToken() string {
 }
 
 func (core *Core) CreateSession(login string) (string, Session, error) {
-	SID := RandStringRunes(32)
+	sid := RandStringRunes(32)
 
 	session := Session{
 		Login:     login,
+		SID:       sid,
 		ExpiresAt: time.Now().Add(24 * time.Hour),
 	}
 
 	core.Mutex.Lock()
-	core.sessions[SID] = session
+	core.sessions.AddSession(session)
 	core.Mutex.Unlock()
 
-	return SID, session, nil
+	return sid, session, nil
 }
 
 func (core *Core) KillSession(sid string) error {
 	core.Mutex.Lock()
-	delete(core.sessions, sid)
+	core.sessions.DeleteSession(sid)
 	core.Mutex.Unlock()
 	return nil
 }
 
 func (core *Core) FindActiveSession(sid string) (bool, error) {
 	core.Mutex.RLock()
-	_, found := core.sessions[sid]
+	found := core.sessions.CheckActiveSession(sid)
 	core.Mutex.RUnlock()
 	return found, nil
 }

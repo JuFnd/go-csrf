@@ -15,11 +15,6 @@ type API struct {
 	lg   *slog.Logger
 }
 
-type Session struct {
-	Login     string
-	ExpiresAt time.Time
-}
-
 func (a *API) SendResponse(w http.ResponseWriter, response Response) {
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
@@ -41,6 +36,7 @@ func (a *API) GetCsrfToken(w http.ResponseWriter, r *http.Request) {
 	csrfToken := w.Header().Get("X-CSRF-Token")
 	if csrfToken != "" && a.core.CheckCsrfToken(csrfToken) {
 		w.Header().Set("X-CSRF-Token", csrfToken)
+		a.SendResponse(w, response)
 		return
 	} else {
 		w.Header().Set("X-CSRF-Token", a.core.CreateCsrfToken())

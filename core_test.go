@@ -33,7 +33,7 @@ func TestCreateUserAccount(t *testing.T) {
 
 func TestCreateAndKillSession(t *testing.T) {
 	login := "testLogin"
-	testCore := Core{sessions: make(map[string]Session)}
+	testCore := Core{sessions: SessionRepo{}}
 
 	sid, _, _ := testCore.CreateSession(login)
 	isFound, _ := testCore.FindActiveSession(sid)

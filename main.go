@@ -11,7 +11,7 @@ func main() {
 	lg := slog.New(slog.NewJSONHandler(logFile, nil))
 
 	core := Core{
-		sessions: make(map[string]Session),
+		sessions: SessionRepo{},
 		users:    make(map[string]User),
 		collections: map[string]string{
 			"new":       "Новинки",
@@ -29,6 +29,7 @@ func main() {
 		},
 		lg: lg.With("module", "core"),
 	}
+	go core.CheckRedisSessionsConnection()
 	api := API{core: &core, lg: lg.With("module", "api")}
 
 	mx := http.NewServeMux()
@@ -42,4 +43,5 @@ func main() {
 	if err != nil {
 		api.lg.Error("ListenAndServe error", "err", err.Error())
 	}
+	select {}
 }
