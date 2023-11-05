@@ -2,11 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"testing"
+
+	"github.com/go-redis/redis/v8"
 )
 
 func TestCreateUserAccount(t *testing.T) {
@@ -33,9 +36,18 @@ func TestCreateUserAccount(t *testing.T) {
 
 func TestCreateAndKillSession(t *testing.T) {
 	login := "testLogin"
-	testCore := Core{sessions: SessionRepo{}}
+	testCore := Core{
+		sessions: SessionRepo{
+			sessionRedisClient: redis.NewClient(&redis.Options{
+				Addr:     "localhost:6379", // адрес и порт Redis сервера
+				Password: "",               // пароль, если требуется
+				DB:       0,                // номер базы данных
+			}),
+			Connection: true,
+		}}
 
 	sid, _, _ := testCore.CreateSession(login)
+	fmt.Println(sid)
 	isFound, _ := testCore.FindActiveSession(sid)
 	if !isFound {
 		t.Errorf("session not found")
