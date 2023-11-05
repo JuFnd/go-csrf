@@ -4,6 +4,8 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+
+	"github.com/go-redis/redis/v8"
 )
 
 func main() {
@@ -11,8 +13,14 @@ func main() {
 	lg := slog.New(slog.NewJSONHandler(logFile, nil))
 
 	core := Core{
-		sessions: SessionRepo{},
-		users:    make(map[string]User),
+		sessions: SessionRepo{
+			sessionRedisClient: redis.NewClient(&redis.Options{
+				Addr:     "localhost:6379", // адрес и порт Redis сервера
+				Password: "",               // пароль, если требуется
+				DB:       0,                // номер базы данных
+			}),
+		},
+		users: make(map[string]User),
 		collections: map[string]string{
 			"new":       "Новинки",
 			"action":    "Боевик",

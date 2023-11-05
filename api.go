@@ -33,7 +33,7 @@ func (a *API) SendResponse(w http.ResponseWriter, response Response) {
 func (a *API) GetCsrfToken(w http.ResponseWriter, r *http.Request) {
 	response := Response{Status: http.StatusOK, Body: nil}
 
-	csrfToken := w.Header().Get("X-CSRF-Token")
+	csrfToken := r.Header.Get("x-csrf-token")
 	if csrfToken != "" && a.core.CheckCsrfToken(csrfToken) {
 		w.Header().Set("X-CSRF-Token", csrfToken)
 		a.SendResponse(w, response)
