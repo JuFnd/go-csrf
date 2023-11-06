@@ -21,8 +21,8 @@ type Session struct {
 
 func (redisRepo *SessionRepo) AddSession(active Session) bool {
 	if !redisRepo.Connection {
-		//fmt.Println("Redis connection lost")
-		//return false
+		fmt.Println("Redis connection lost")
+		return false
 	}
 
 	ctx := context.Background()
@@ -36,8 +36,8 @@ func (redisRepo *SessionRepo) AddSession(active Session) bool {
 
 func (redisRepo *SessionRepo) CheckActiveSession(sid string) bool {
 	if !redisRepo.Connection {
-		//fmt.Println("Redis connection lost")
-		//return false
+		fmt.Println("Redis connection lost")
+		return false
 	}
 
 	ctx := context.Background()

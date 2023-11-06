@@ -14,53 +14,68 @@ type Core struct {
 	sessions    SessionRepo
 	users       map[string]User
 	collections map[string]string
-	csrfTokens  map[string]time.Time
+	csrfTokens  CsrfRepo
 	Mutex       sync.RWMutex
 	lg          *slog.Logger
 }
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
-func (core *Core) CheckRedisSessionsConnection() {
-	if !core.sessions.Connection {
-		fmt.Println("Redis connection lost")
+func (core *Core) CheckRedisCsrfConnection() {
+	if !core.csrfTokens.Connection {
+		fmt.Println("Redis csrf connection lost")
 	}
+
 	ctx := context.Background()
 	for {
-		// Проверка соединения с Redis
+
+		_, err := core.csrfTokens.csrfRedisClient.Ping(ctx).Result()
+		core.csrfTokens.Connection = err != nil
+		if core.csrfTokens.Connection {
+			fmt.Println("Redis connection active")
+		}
+
+		time.Sleep(15 * time.Second)
+	}
+}
+
+func (core *Core) CheckRedisSessionsConnection() {
+	if !core.sessions.Connection {
+		fmt.Println("Redis sessions connection lost")
+	}
+
+	ctx := context.Background()
+	for {
+
 		_, err := core.sessions.sessionRedisClient.Ping(ctx).Result()
 		core.sessions.Connection = err != nil
 		if core.sessions.Connection {
 			fmt.Println("Redis connection active")
 		}
-		// Пауза на 15 секунд перед следующей проверкой
+
 		time.Sleep(15 * time.Second)
 	}
 }
 
 func (core *Core) CheckCsrfToken(token string) bool {
 	core.Mutex.RLock()
-	csrfTime, found := core.csrfTokens[token]
+	found := core.csrfTokens.CheckActiveCsrf(token)
 	core.Mutex.RUnlock()
-
-	if time.Now().After(csrfTime) {
-		core.Mutex.Lock()
-		delete(core.csrfTokens, token)
-		core.Mutex.Unlock()
-		return !found
-	}
 
 	return found
 }
 
 func (core *Core) CreateCsrfToken() string {
-	SID := RandStringRunes(32)
+	sid := RandStringRunes(32)
 
 	core.Mutex.Lock()
-	core.csrfTokens[SID] = time.Now().Add(3 * time.Hour)
+	core.csrfTokens.AddCsrf(Csrf{
+		SID:       sid,
+		ExpiresAt: time.Now().Add(3 * time.Hour),
+	})
 	core.Mutex.Unlock()
 
-	return SID
+	return sid
 }
 
 func (core *Core) CreateSession(login string) (string, Session, error) {

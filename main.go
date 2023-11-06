@@ -20,6 +20,13 @@ func main() {
 				DB:       0,                // номер базы данных
 			}),
 		},
+		csrfTokens: CsrfRepo{
+			csrfRedisClient: redis.NewClient(&redis.Options{
+				Addr:     "localhost:6379", // адрес и порт Redis сервера
+				Password: "",               // пароль, если требуется
+				DB:       1,                // номер базы данных
+			}),
+		},
 		users: make(map[string]User),
 		collections: map[string]string{
 			"new":       "Новинки",
@@ -38,6 +45,7 @@ func main() {
 		lg: lg.With("module", "core"),
 	}
 	go core.CheckRedisSessionsConnection()
+	go core.CheckRedisCsrfConnection()
 	api := API{core: &core, lg: lg.With("module", "api")}
 
 	mx := http.NewServeMux()
