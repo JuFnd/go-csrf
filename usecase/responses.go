@@ -8,6 +8,11 @@ import (
 	"github.com/go-park-mail-ru/2023_2_Vkladyshi/repository/profession"
 )
 
+type Response struct {
+	Status int `json:"status"`
+	Body   any `json:"body"`
+}
+
 type FilmsResponse struct {
 	Page           uint64          `json:"current_page"`
 	PageSize       uint64          `json:"page_size"`
@@ -37,4 +42,12 @@ type ActorResponse struct {
 
 type CommentResponse struct {
 	Comments []comment.CommentItem `json:"comment"`
+}
+
+type ProfileResponse struct {
+	Email     string `json:"email"`
+	Name      string `json:"name"`
+	Login     string `json:"login"`
+	Photo     string `json:"photo"`
+	BirthDate string `json:"birthday"`
 }

@@ -32,7 +32,7 @@ func TestGetActorProfessions(t *testing.T) {
 		WillReturnRows(rows)
 
 	repo := &RepoPostgre{
-		DB: db,
+		db: db,
 	}
 
 	career, err := repo.GetActorsProfessions(1)

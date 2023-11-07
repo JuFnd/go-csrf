@@ -2,6 +2,7 @@ package genre
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -13,10 +14,11 @@ import (
 
 type IGenreRepo interface {
 	GetFilmGenres(filmId uint64) ([]GenreItem, error)
+	GetGenreById(genreId uint64) (string, error)
 }
 
 type RepoPostgre struct {
-	DB *sql.DB
+	db *sql.DB
 }
 
 func GetGenreRepo(config configs.DbDsnCfg, lg *slog.Logger) *RepoPostgre {
@@ -34,14 +36,14 @@ func GetGenreRepo(config configs.DbDsnCfg, lg *slog.Logger) *RepoPostgre {
 	}
 	db.SetMaxOpenConns(config.MaxOpenConns)
 
-	postgreDb := RepoPostgre{DB: db}
+	postgreDb := RepoPostgre{db: db}
 
 	go postgreDb.pingDb(config.Timer, lg)
 	return &postgreDb
 }
 
 func (repo *RepoPostgre) pingDb(timer uint32, lg *slog.Logger) {
-	err := repo.DB.Ping()
+	err := repo.db.Ping()
 	if err != nil {
 		lg.Error("Repo Genre db ping error", "err", err.Error())
 	}
@@ -50,14 +52,14 @@ func (repo *RepoPostgre) pingDb(timer uint32, lg *slog.Logger) {
 }
 
 func (repo *RepoPostgre) GetFilmGenres(filmId uint64) ([]GenreItem, error) {
-	var genres []GenreItem
+	genres := []GenreItem{}
 
-	rows, err := repo.DB.Query(
+	rows, err := repo.db.Query(
 		"SELECT genre.id, genre.title FROM genre "+
 			"JOIN films_genre ON genre.id = films_genre.id_genre "+
 			"WHERE films_genre.id_film = $1", filmId)
-	if err != nil && err != sql.ErrNoRows {
-		return nil, err
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("GetFilmGenres err: %w", err)
 	}
 	defer rows.Close()
 
@@ -65,10 +67,26 @@ func (repo *RepoPostgre) GetFilmGenres(filmId uint64) ([]GenreItem, error) {
 		post := GenreItem{}
 		err := rows.Scan(&post.Id, &post.Title)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("GetFilmGenres scan err: %w", err)
 		}
 		genres = append(genres, post)
 	}
 
 	return genres, nil
+}
+
+func (repo *RepoPostgre) GetGenreById(genreId uint64) (string, error) {
+	var genre string
+
+	err := repo.db.QueryRow(
+		"SELECT title FROM genre "+
+			"WHERE id = $1", genreId).Scan(&genre)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+		return "", err
+	}
+
+	return genre, nil
 }

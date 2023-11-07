@@ -13,4 +13,5 @@ type IApi interface {
 	Actor(w http.ResponseWriter, r *http.Request)
 	Comment(w http.ResponseWriter, r *http.Request)
 	AddComment(w http.ResponseWriter, r *http.Request)
+	Profile(w http.ResponseWriter, r *http.Request)
 }

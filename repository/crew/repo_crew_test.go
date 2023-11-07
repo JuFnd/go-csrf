@@ -32,7 +32,7 @@ func TestGetFilmDirectors(t *testing.T) {
 		WillReturnRows(rows)
 
 	repo := &RepoPostgre{
-		DB: db,
+		db: db,
 	}
 
 	directors, err := repo.GetFilmDirectors(1)
@@ -92,7 +92,7 @@ func TestGetFilmScenarists(t *testing.T) {
 		WillReturnRows(rows)
 
 	repo := &RepoPostgre{
-		DB: db,
+		db: db,
 	}
 
 	scenarists, err := repo.GetFilmScenarists(1)
@@ -152,7 +152,7 @@ func TestGetFilmCharacters(t *testing.T) {
 		WillReturnRows(rows)
 
 	repo := &RepoPostgre{
-		DB: db,
+		db: db,
 	}
 
 	characters, err := repo.GetFilmCharacters(1)
@@ -212,7 +212,7 @@ func TestGetActor(t *testing.T) {
 		WillReturnRows(rows)
 
 	repo := &RepoPostgre{
-		DB: db,
+		db: db,
 	}
 
 	actor, err := repo.GetActor(1)

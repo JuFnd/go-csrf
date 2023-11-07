@@ -9,16 +9,44 @@ import (
 	"time"
 
 	"github.com/go-park-mail-ru/2023_2_Vkladyshi/delivery"
+	"github.com/go-park-mail-ru/2023_2_Vkladyshi/errors"
 	"github.com/go-park-mail-ru/2023_2_Vkladyshi/repository/film"
 )
 
 type API struct {
 	core delivery.ICore
 	lg   *slog.Logger
+	mx   *http.ServeMux
 }
 
 func GetApi(c *delivery.Core, l *slog.Logger) *API {
-	return &API{core: c, lg: l.With("module", "api")}
+	api := &API{
+		core: c,
+		lg:   l.With("module", "api"),
+	}
+	mx := http.NewServeMux()
+	mx.HandleFunc("/signup", api.Signup)
+	mx.HandleFunc("/signin", api.Signin)
+	mx.HandleFunc("/logout", api.LogoutSession)
+	mx.HandleFunc("/authcheck", api.AuthAccept)
+	mx.HandleFunc("/api/v1/films", api.Films)
+	mx.HandleFunc("/api/v1/film", api.Film)
+	mx.HandleFunc("/api/v1/actor", api.Actor)
+	mx.HandleFunc("/api/v1/comment", api.Comment)
+	mx.HandleFunc("/api/v1/comment/add", api.AddComment)
+	mx.HandleFunc("/api/v1/settings", api.Profile)
+	mx.HandleFunc("/api/v1/csrf", api.GetCsrfToken)
+
+	api.mx = mx
+
+	return api
+}
+
+func (a *API) ListenAndServe() {
+	err := http.ListenAndServe(":8080", a.mx)
+	if err != nil {
+		a.lg.Error("ListenAndServe error", "err", err.Error())
+	}
 }
 
 func (a *API) GetCsrfToken(w http.ResponseWriter, r *http.Request) {
@@ -80,21 +108,37 @@ func (a *API) Films(w http.ResponseWriter, r *http.Request) {
 		pageSize = 8
 	}
 
+	genreId, err := strconv.ParseUint(r.URL.Query().Get("collection_id"), 10, 64)
+	if err != nil {
+		genreId = 0
+	}
+
 	var films []film.FilmItem
-	collectionId := r.URL.Query().Get("collection_id")
-	if collectionId == "" {
+
+	if genreId == 0 {
 		films, err = a.core.GetFilms(uint64((page-1)*pageSize), pageSize)
 	} else {
-		films, err = a.core.GetFilmsByGenre(collectionId, uint64((page-1)*pageSize), pageSize)
+		films, err = a.core.GetFilmsByGenre(genreId, uint64((page-1)*pageSize), pageSize)
 	}
 	if err != nil {
 		a.lg.Error("Films error", "err", err.Error())
+		response.Status = http.StatusInternalServerError
+		a.SendResponse(w, response)
+		return
+	}
+
+	genre, err := a.core.GetGenre(genreId)
+	if err != nil {
+		a.lg.Error("Films get genre error", "err", err.Error())
+		response.Status = http.StatusInternalServerError
+		a.SendResponse(w, response)
+		return
 	}
 	filmsResponse := FilmsResponse{
 		Page:           page,
 		PageSize:       pageSize,
 		Total:          uint64(len(films)),
-		CollectionName: collectionId,
+		CollectionName: genre,
 		Films:          films,
 	}
 	response.Body = filmsResponse
@@ -154,6 +198,7 @@ func (a *API) Signin(w http.ResponseWriter, r *http.Request) {
 		a.SendResponse(w, response)
 		return
 	}
+	
 	csrfToken := r.Header.Get("x-csrf-token")
 
 	found, err := a.core.CheckCsrfToken(csrfToken)
@@ -162,7 +207,7 @@ func (a *API) Signin(w http.ResponseWriter, r *http.Request) {
 		a.SendResponse(w, response)
 		return
 	}
-
+	
 	var request SigninRequest
 
 	body, err := io.ReadAll(r.Body)
@@ -214,8 +259,8 @@ func (a *API) Signup(w http.ResponseWriter, r *http.Request) {
 
 	csrfToken := r.Header.Get("x-csrf-token")
 
-	found, err_token := a.core.CheckCsrfToken(csrfToken)
-	if !found || err_token != nil {
+	found, err := a.core.CheckCsrfToken(csrfToken)
+	if !found || err != nil {
 		response.Status = 412
 		a.SendResponse(w, response)
 		return
@@ -225,6 +270,7 @@ func (a *API) Signup(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
+		a.lg.Error("Signup error", "err", err.Error())
 		response.Status = http.StatusBadRequest
 		a.SendResponse(w, response)
 		return
@@ -232,13 +278,14 @@ func (a *API) Signup(w http.ResponseWriter, r *http.Request) {
 
 	err = json.Unmarshal(body, &request)
 	if err != nil {
+		a.lg.Error("Signup error", "err", err.Error())
 		response.Status = http.StatusBadRequest
 		a.SendResponse(w, response)
 		return
 	}
 
-	found, err_find := a.core.FindUserByLogin(request.Login)
-	if err_find != nil {
+	found, err := a.core.FindUserByLogin(request.Login)
+	if err != nil {
 		a.lg.Error("Signup error", "err", err.Error())
 		response.Status = http.StatusInternalServerError
 		a.SendResponse(w, response)
@@ -250,7 +297,7 @@ func (a *API) Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err = a.core.CreateUserAccount(request.Login, request.Password, request.Name, request.BirthDate, request.Email)
-	if err == delivery.InvalideEmail {
+	if err == errors.InvalideEmail {
 		a.lg.Error("create user error", "err", err.Error())
 		response.Status = http.StatusBadRequest
 	}
@@ -425,5 +472,95 @@ func (a *API) Comment(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) AddComment(w http.ResponseWriter, r *http.Request) {
+	response := Response{Status: http.StatusOK, Body: nil}
+	if r.Method != http.MethodPost {
+		response.Status = http.StatusMethodNotAllowed
+		a.SendResponse(w, response)
+		return
+	}
 
+	session, err := r.Cookie("session_id")
+	if err == http.ErrNoCookie {
+		response.Status = http.StatusUnauthorized
+		a.SendResponse(w, response)
+		return
+	}
+	if err != nil {
+		a.lg.Error("Add comment error", "err", err.Error())
+		response.Status = http.StatusInternalServerError
+		a.SendResponse(w, response)
+		return
+	}
+
+	login, err := a.core.GetUserName(session.Value)
+	if err != nil {
+		a.lg.Error("Add comment error", "err", err.Error())
+		response.Status = http.StatusInternalServerError
+		a.SendResponse(w, response)
+		return
+	}
+
+	var commentRequest CommentRequest
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		response.Status = http.StatusBadRequest
+		a.SendResponse(w, response)
+		return
+	}
+
+	if err = json.Unmarshal(body, &commentRequest); err != nil {
+		response.Status = http.StatusBadRequest
+		a.SendResponse(w, response)
+		return
+	}
+
+	err = a.core.AddComment(commentRequest.FilmId, login, commentRequest.Rating, commentRequest.Text)
+	if err != nil {
+		a.lg.Error("Add Comment error", "err", err.Error())
+		response.Status = http.StatusInternalServerError
+	}
+
+	a.SendResponse(w, response)
+}
+
+func (a *API) Profile(w http.ResponseWriter, r *http.Request) {
+	response := Response{Status: http.StatusOK, Body: nil}
+	if r.Method == http.MethodGet {
+		session, err := r.Cookie("session_id")
+		if err == http.ErrNoCookie {
+			response.Status = http.StatusUnauthorized
+			a.SendResponse(w, response)
+			return
+		}
+
+		login, err := a.core.GetUserName(session.Value)
+		if err != nil {
+			a.lg.Error("Get Profile error", "err", err.Error())
+		}
+
+		profile, err := a.core.GetUserProfile(login)
+		if err != nil {
+			response.Status = http.StatusInternalServerError
+			a.SendResponse(w, response)
+			return
+		}
+
+		profileResponse := ProfileResponse{
+			Email:     profile.Email,
+			Name:      profile.Name,
+			Login:     profile.Login,
+			Photo:     profile.Photo,
+			BirthDate: profile.Birthdate,
+		}
+
+		response.Body = profileResponse
+		a.SendResponse(w, response)
+		return
+	}
+	if r.Method != http.MethodPost {
+		response.Status = http.StatusUnauthorized
+		a.SendResponse(w, response)
+		return
+	}
 }
