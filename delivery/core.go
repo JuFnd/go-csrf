@@ -33,21 +33,31 @@ type Core struct {
 	Profession profession.IProfessionRepo
 }
 
-type Session struct {
-	Login     string
-	ExpiresAt time.Time
-}
-
 func GetCore(cfg configs.DbDsnCfg, lg *slog.Logger) *Core {
+	csrf, err := csrf.GetCsrfRepo(lg)
+
+	if err != nil {
+		lg.Error("Csrf repository is not responding")
+		return nil
+	}
+
+	session, err := session.GetSessionRepo(lg)
+
+	if err != nil {
+		lg.Error("Session repository is not responding")
+		return nil
+	}
+
 	core := Core{
-		sessions:   make(map[string]Session),
+		sessions:   *session,
+		csrfTokens: *csrf,
 		lg:         lg.With("module", "core"),
-		films:      film.GetFilmRepo(cfg, lg),
-		users:      profile.GetUserRepo(cfg, lg),
-		genres:     genre.GetGenreRepo(cfg, lg),
-		comments:   comment.GetCommentRepo(cfg, lg),
-		crew:       crew.GetCrewRepo(cfg, lg),
-		profession: profession.GetProfessionRepo(cfg, lg),
+		Films:      film.GetFilmRepo(cfg, lg),
+		Users:      profile.GetUserRepo(cfg, lg),
+		Genres:     genre.GetGenreRepo(cfg, lg),
+		Comments:   comment.GetCommentRepo(cfg, lg),
+		Crew:       crew.GetCrewRepo(cfg, lg),
+		Profession: profession.GetProfessionRepo(cfg, lg),
 	}
 	return &core
 }
