@@ -30,7 +30,7 @@ func TestGetUser(t *testing.T) {
 	mock.ExpectQuery("SELECT login, photo FROM profile WHERE").WithArgs(expect[0].Login, expect[0].Password).WillReturnRows(rows)
 
 	repo := &RepoPostgre{
-		DB: db,
+		db: db,
 	}
 
 	user, foundAccount, err := repo.GetUser(expect[0].Login, expect[0].Password)
@@ -91,7 +91,7 @@ func TestFindUser(t *testing.T) {
 	mock.ExpectQuery("SELECT login FROM profile WHERE").WithArgs(expect[0].Login).WillReturnRows(rows)
 
 	repo := &RepoPostgre{
-		DB: db,
+		db: db,
 	}
 
 	foundAccount, err := repo.FindUser(expect[0].Login)
@@ -154,7 +154,7 @@ func TestCreateUser(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	repo := &RepoPostgre{
-		DB: db,
+		db: db,
 	}
 
 	err = repo.CreateUser(testUser.Login, testUser.Password, testUser.Name, testUser.Birthdate, testUser.Email)
@@ -181,5 +181,4 @@ func TestCreateUser(t *testing.T) {
 		t.Errorf("expected error, got nil")
 		return
 	}
-
 }

@@ -13,11 +13,6 @@ type SigninRequest struct {
 	Password string `json:"password"`
 }
 
-type Response struct {
-	Status int `json:"status"`
-	Body   any `json:"body"`
-}
-
 type CommentRequest struct {
 	FilmId uint64 `json:"film_id"`
 	Rating uint16 `json:"rating"`

@@ -2,6 +2,7 @@ package crew
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -19,7 +20,7 @@ type ICrewRepo interface {
 }
 
 type RepoPostgre struct {
-	DB *sql.DB
+	db *sql.DB
 }
 
 func GetCrewRepo(config configs.DbDsnCfg, lg *slog.Logger) *RepoPostgre {
@@ -37,14 +38,14 @@ func GetCrewRepo(config configs.DbDsnCfg, lg *slog.Logger) *RepoPostgre {
 	}
 	db.SetMaxOpenConns(config.MaxOpenConns)
 
-	postgreDb := RepoPostgre{DB: db}
+	postgreDb := RepoPostgre{db: db}
 
 	go postgreDb.pingDb(config.Timer, lg)
 	return &postgreDb
 }
 
 func (repo *RepoPostgre) pingDb(timer uint32, lg *slog.Logger) {
-	err := repo.DB.Ping()
+	err := repo.db.Ping()
 	if err != nil {
 		lg.Error("Repo Crew db ping error", "err", err.Error())
 	}
@@ -53,15 +54,15 @@ func (repo *RepoPostgre) pingDb(timer uint32, lg *slog.Logger) {
 }
 
 func (repo *RepoPostgre) GetFilmDirectors(filmId uint64) ([]CrewItem, error) {
-	var directors []CrewItem
+	directors := []CrewItem{}
 
-	rows, err := repo.DB.Query(
+	rows, err := repo.db.Query(
 		"SELECT crew.id, name, photo  FROM crew "+
 			"JOIN person_in_film ON crew.id = person_in_film.id_person "+
 			"WHERE id_film = $1 AND id_profession = "+
 			"(SELECT id FROM profession WHERE title = 'режиссёр')", filmId)
-	if err != nil && err != sql.ErrNoRows {
-		return nil, err
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("GetFilmDirectors err: %w", err)
 	}
 	defer rows.Close()
 
@@ -69,7 +70,7 @@ func (repo *RepoPostgre) GetFilmDirectors(filmId uint64) ([]CrewItem, error) {
 		post := CrewItem{}
 		err := rows.Scan(&post.Id, &post.Name, &post.Photo)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("GetFilmDirectors scan err: %w", err)
 		}
 		directors = append(directors, post)
 	}
@@ -78,15 +79,15 @@ func (repo *RepoPostgre) GetFilmDirectors(filmId uint64) ([]CrewItem, error) {
 }
 
 func (repo *RepoPostgre) GetFilmScenarists(filmId uint64) ([]CrewItem, error) {
-	var scenarists []CrewItem
+	scenarists := []CrewItem{}
 
-	rows, err := repo.DB.Query(
+	rows, err := repo.db.Query(
 		"SELECT crew.id, name, photo  FROM crew "+
 			"JOIN person_in_film ON crew.id = person_in_film.id_person "+
 			"WHERE id_film = $1 AND id_profession = "+
 			"(SELECT id FROM profession WHERE title = 'сценарист')", filmId)
-	if err != nil && err != sql.ErrNoRows {
-		return nil, err
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("GetFilmScenarists err: %w", err)
 	}
 	defer rows.Close()
 
@@ -94,7 +95,7 @@ func (repo *RepoPostgre) GetFilmScenarists(filmId uint64) ([]CrewItem, error) {
 		post := CrewItem{}
 		err := rows.Scan(&post.Id, &post.Name, &post.Photo)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("GetFilmScenarists scan err: %w", err)
 		}
 		scenarists = append(scenarists, post)
 	}
@@ -105,13 +106,13 @@ func (repo *RepoPostgre) GetFilmScenarists(filmId uint64) ([]CrewItem, error) {
 func (repo *RepoPostgre) GetFilmCharacters(filmId uint64) ([]Character, error) {
 	characters := []Character{}
 
-	rows, err := repo.DB.Query(
+	rows, err := repo.db.Query(
 		"SELECT crew.id, name, photo, person_in_film.character_name FROM crew "+
 			"JOIN person_in_film ON crew.id = person_in_film.id_person "+
 			"WHERE id_film = $1 AND id_profession = "+
 			"(SELECT id FROM profession WHERE title = 'актёр')", filmId)
-	if err != nil && err != sql.ErrNoRows {
-		return nil, err
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("GetFilmCharacters err: %w", err)
 	}
 	defer rows.Close()
 
@@ -119,7 +120,7 @@ func (repo *RepoPostgre) GetFilmCharacters(filmId uint64) ([]Character, error) {
 		post := Character{}
 		err := rows.Scan(&post.IdActor, &post.NameActor, &post.ActorPhoto, &post.NameCharacter)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("GetFilmCharacters scan err: %w", err)
 		}
 		characters = append(characters, post)
 	}
@@ -130,12 +131,15 @@ func (repo *RepoPostgre) GetFilmCharacters(filmId uint64) ([]Character, error) {
 func (repo *RepoPostgre) GetActor(actorId uint64) (*CrewItem, error) {
 	actor := &CrewItem{}
 
-	err := repo.DB.QueryRow(
+	err := repo.db.QueryRow(
 		"SELECT id, name, birth_date, photo FROM crew "+
 			"WHERE id = $1", actorId).
 		Scan(&actor.Id, &actor.Name, &actor.Birthdate, &actor.Photo)
-	if err != nil && err != sql.ErrNoRows {
-		return nil, err
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return actor, nil
+		}
+		return nil, fmt.Errorf("GetActor err: %w", err)
 	}
 
 	return actor, nil
