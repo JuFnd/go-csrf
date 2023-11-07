@@ -1,8 +1,6 @@
 package main
 
 import (
-	"context"
-	"fmt"
 	"log/slog"
 	"math/rand"
 	"strings"
@@ -21,45 +19,9 @@ type Core struct {
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
-func (core *Core) CheckRedisCsrfConnection() {
-	if !core.csrfTokens.Connection {
-		fmt.Println("Redis csrf connection lost")
-	}
-
-	ctx := context.Background()
-	for {
-
-		_, err := core.csrfTokens.csrfRedisClient.Ping(ctx).Result()
-		core.csrfTokens.Connection = err != nil
-		if core.csrfTokens.Connection {
-			fmt.Println("Redis connection active")
-		}
-
-		time.Sleep(15 * time.Second)
-	}
-}
-
-func (core *Core) CheckRedisSessionsConnection() {
-	if !core.sessions.Connection {
-		fmt.Println("Redis sessions connection lost")
-	}
-
-	ctx := context.Background()
-	for {
-
-		_, err := core.sessions.sessionRedisClient.Ping(ctx).Result()
-		core.sessions.Connection = err != nil
-		if core.sessions.Connection {
-			fmt.Println("Redis connection active")
-		}
-
-		time.Sleep(15 * time.Second)
-	}
-}
-
 func (core *Core) CheckCsrfToken(token string) bool {
 	core.Mutex.RLock()
-	found := core.csrfTokens.CheckActiveCsrf(token)
+	found := core.csrfTokens.CheckActiveCsrf(token, core.lg)
 	core.Mutex.RUnlock()
 
 	return found
@@ -72,7 +34,9 @@ func (core *Core) CreateCsrfToken() string {
 	core.csrfTokens.AddCsrf(Csrf{
 		SID:       sid,
 		ExpiresAt: time.Now().Add(3 * time.Hour),
-	})
+	},
+		core.lg,
+	)
 	core.Mutex.Unlock()
 
 	return sid
@@ -88,7 +52,7 @@ func (core *Core) CreateSession(login string) (string, Session, error) {
 	}
 
 	core.Mutex.Lock()
-	core.sessions.AddSession(session)
+	core.sessions.AddSession(session, core.lg)
 	core.Mutex.Unlock()
 
 	return sid, session, nil
@@ -96,14 +60,14 @@ func (core *Core) CreateSession(login string) (string, Session, error) {
 
 func (core *Core) KillSession(sid string) error {
 	core.Mutex.Lock()
-	core.sessions.DeleteSession(sid)
+	core.sessions.DeleteSession(sid, core.lg)
 	core.Mutex.Unlock()
 	return nil
 }
 
 func (core *Core) FindActiveSession(sid string) (bool, error) {
 	core.Mutex.RLock()
-	found := core.sessions.CheckActiveSession(sid)
+	found := core.sessions.CheckActiveSession(sid, core.lg)
 	core.Mutex.RUnlock()
 	return found, nil
 }

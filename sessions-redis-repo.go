@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -19,50 +19,86 @@ type Session struct {
 	ExpiresAt time.Time
 }
 
-func (redisRepo *SessionRepo) AddSession(active Session) bool {
+func (redisRepo *SessionRepo) CheckRedisSessionConnection() {
+	ctx := context.Background()
+	for {
+
+		_, err := redisRepo.sessionRedisClient.Ping(ctx).Result()
+		redisRepo.Connection = err == nil
+
+		time.Sleep(15 * time.Second)
+	}
+}
+
+func GetSessionRepo(lg *slog.Logger) *SessionRepo {
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "",
+		DB:       0,
+	})
+
+	ctx := context.Background()
+
+	_, err := redisClient.Ping(ctx).Result()
+
+	sessionRepo := SessionRepo{
+		sessionRedisClient: redisClient,
+		Connection:         err == nil,
+	}
+
+	go sessionRepo.CheckRedisSessionConnection()
+
+	return &sessionRepo
+
+}
+
+func (redisRepo *SessionRepo) AddSession(active Session, lg *slog.Logger) bool {
 	if !redisRepo.Connection {
-		fmt.Println("Redis connection lost")
+		lg.Error("Redis session connection lost")
 		return false
 	}
 
 	ctx := context.Background()
-	redisRepo.sessionRedisClient.Set(ctx, active.SID, active.Login, 24*time.Hour)
-	if !redisRepo.CheckActiveSession(active.SID) {
-		fmt.Println("Error create session", active.SID)
+	err := redisRepo.sessionRedisClient.Set(ctx, active.SID, active.Login, 24*time.Hour)
+
+	if err != nil {
+		lg.Error("Error, cannot create session " + active.SID)
 		return false
 	}
+
+	return redisRepo.CheckActiveSession(active.SID, lg)
+}
+
+func (redisRepo *SessionRepo) CheckActiveSession(sid string, lg *slog.Logger) bool {
+	if !redisRepo.Connection {
+		lg.Error("Redis session connection lost")
+		return false
+	}
+
+	ctx := context.Background()
+
+	_, err := redisRepo.sessionRedisClient.Get(ctx, sid).Result()
+	if err == redis.Nil {
+		lg.Error("Key" + sid + "not found")
+		return false
+	}
+
+	if err != nil {
+		lg.Error("Get request could not be completed ", err)
+		return false
+	}
+
 	return true
 }
 
-func (redisRepo *SessionRepo) CheckActiveSession(sid string) bool {
-	if !redisRepo.Connection {
-		fmt.Println("Redis connection lost")
-		return false
-	}
-
+func (redisRepo *SessionRepo) DeleteSession(sid string, lg *slog.Logger) bool {
 	ctx := context.Background()
 
-	session, err := redisRepo.sessionRedisClient.Get(ctx, sid).Result()
-	if err == redis.Nil {
-		fmt.Println("Ключ не найден")
-		return false
-	} else if err != nil {
-		fmt.Println("Ошибка при выполнении GET-запроса:", err)
-		return false
-	} else {
-		fmt.Println("Значение:", session)
-		return true
-	}
-}
+	_, err := redisRepo.sessionRedisClient.Del(ctx, sid).Result()
 
-func (redisRepo *SessionRepo) DeleteSession(sid string) bool {
-	ctx := context.Background()
-
-	result, err := redisRepo.sessionRedisClient.Del(ctx, sid).Result()
 	if err != nil {
-		fmt.Println("Ошибка при выполнении запроса на удаление:", err)
-	} else {
-		fmt.Println("Количество удаленных ключей:", result)
+		lg.Error("Delete request could not be completed:", err)
 	}
+
 	return err != nil
 }

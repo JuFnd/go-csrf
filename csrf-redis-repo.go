@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -18,47 +18,86 @@ type Csrf struct {
 	ExpiresAt time.Time
 }
 
-func (redisRepo *CsrfRepo) AddCsrf(active Csrf) bool {
+func (redisRepo *CsrfRepo) CheckRedisCsrfConnection() {
+	ctx := context.Background()
+	for {
+
+		_, err := redisRepo.csrfRedisClient.Ping(ctx).Result()
+		redisRepo.Connection = err == nil
+
+		time.Sleep(15 * time.Second)
+	}
+}
+
+func GetCsrfRepo(lg *slog.Logger) *CsrfRepo {
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "",
+		DB:       1,
+	})
+
+	ctx := context.Background()
+
+	_, err := redisClient.Ping(ctx).Result()
+
+	csrfRepo := CsrfRepo{
+		csrfRedisClient: redisClient,
+		Connection:      err == nil,
+	}
+
+	go csrfRepo.CheckRedisCsrfConnection()
+
+	return &csrfRepo
+
+}
+
+func (redisRepo *CsrfRepo) AddCsrf(active Csrf, lg *slog.Logger) bool {
 	if !redisRepo.Connection {
+		lg.Error("Redis csrf connection lost")
 		return false
 	}
 
 	ctx := context.Background()
-	redisRepo.csrfRedisClient.Set(ctx, active.SID, active.SID, 3*time.Hour)
-	if !redisRepo.CheckActiveCsrf(active.SID) {
+	err := redisRepo.csrfRedisClient.Set(ctx, active.SID, active.SID, 3*time.Hour)
+
+	if err != nil {
+		lg.Error("Error, cannot create csrf token ", err.Err())
 		return false
 	}
+
+	return redisRepo.CheckActiveCsrf(active.SID, lg)
+}
+
+func (redisRepo *CsrfRepo) CheckActiveCsrf(sid string, lg *slog.Logger) bool {
+	if !redisRepo.Connection {
+		lg.Error("Redis csrf connection lost")
+		return false
+	}
+
+	ctx := context.Background()
+
+	_, err := redisRepo.csrfRedisClient.Get(ctx, sid).Result()
+	if err == redis.Nil {
+		lg.Error("Key" + sid + "not found")
+		return false
+	}
+
+	if err != nil {
+		lg.Error("Get request could not be completed ", err)
+		return false
+	}
+
 	return true
 }
 
-func (redisRepo *CsrfRepo) CheckActiveCsrf(sid string) bool {
-	if !redisRepo.Connection {
-		return false
-	}
-
+func (redisRepo *CsrfRepo) DeleteSession(sid string, lg *slog.Logger) bool {
 	ctx := context.Background()
 
-	session, err := redisRepo.csrfRedisClient.Get(ctx, sid).Result()
-	if err == redis.Nil {
-		fmt.Println("Ключ не найден")
-		return false
-	} else if err != nil {
-		fmt.Println("Ошибка при выполнении GET-запроса:", err)
-		return false
-	} else {
-		fmt.Println("Значение:", session)
-		return true
-	}
-}
+	_, err := redisRepo.csrfRedisClient.Del(ctx, sid).Result()
 
-func (redisRepo *CsrfRepo) DeleteSession(sid string) bool {
-	ctx := context.Background()
-
-	result, err := redisRepo.csrfRedisClient.Del(ctx, sid).Result()
 	if err != nil {
-		fmt.Println("Ошибка при выполнении запроса на удаление:", err)
-	} else {
-		fmt.Println("Количество удаленных ключей:", result)
+		lg.Error("Delete request could not be completed:", err)
 	}
+
 	return err != nil
 }
