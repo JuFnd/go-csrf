@@ -198,6 +198,16 @@ func (a *API) Signin(w http.ResponseWriter, r *http.Request) {
 		a.SendResponse(w, response)
 		return
 	}
+	
+	csrfToken := r.Header.Get("x-csrf-token")
+
+	found, err := a.core.CheckCsrfToken(csrfToken)
+	if !found || err != nil {
+		response.Status = 412
+		a.SendResponse(w, response)
+		return
+	}
+	
 	var request SigninRequest
 
 	body, err := io.ReadAll(r.Body)
@@ -243,6 +253,15 @@ func (a *API) Signup(w http.ResponseWriter, r *http.Request) {
 	response := Response{Status: http.StatusOK, Body: nil}
 	if r.Method != http.MethodPost {
 		response.Status = http.StatusMethodNotAllowed
+		a.SendResponse(w, response)
+		return
+	}
+
+	csrfToken := r.Header.Get("x-csrf-token")
+
+	found, err := a.core.CheckCsrfToken(csrfToken)
+	if !found || err != nil {
+		response.Status = 412
 		a.SendResponse(w, response)
 		return
 	}
