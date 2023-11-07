@@ -35,6 +35,7 @@ func GetApi(c *delivery.Core, l *slog.Logger) *API {
 	mx.HandleFunc("/api/v1/comment", api.Comment)
 	mx.HandleFunc("/api/v1/comment/add", api.AddComment)
 	mx.HandleFunc("/api/v1/settings", api.Profile)
+	mx.HandleFunc("/api/v1/csrf", api.GetCsrfToken)
 
 	api.mx = mx
 
