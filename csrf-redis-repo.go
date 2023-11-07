@@ -20,14 +20,12 @@ type Csrf struct {
 
 func (redisRepo *CsrfRepo) AddCsrf(active Csrf) bool {
 	if !redisRepo.Connection {
-		fmt.Println("Redis connection lost")
 		return false
 	}
 
 	ctx := context.Background()
 	redisRepo.csrfRedisClient.Set(ctx, active.SID, active.SID, 3*time.Hour)
 	if !redisRepo.CheckActiveCsrf(active.SID) {
-		fmt.Println("Error create session", active.SID)
 		return false
 	}
 	return true
@@ -35,7 +33,6 @@ func (redisRepo *CsrfRepo) AddCsrf(active Csrf) bool {
 
 func (redisRepo *CsrfRepo) CheckActiveCsrf(sid string) bool {
 	if !redisRepo.Connection {
-		fmt.Println("Redis connection lost")
 		return false
 	}
 
@@ -55,10 +52,8 @@ func (redisRepo *CsrfRepo) CheckActiveCsrf(sid string) bool {
 }
 
 func (redisRepo *CsrfRepo) DeleteSession(sid string) bool {
-	// Создание контекста
 	ctx := context.Background()
 
-	// Выполнение запроса на удаление
 	result, err := redisRepo.csrfRedisClient.Del(ctx, sid).Result()
 	if err != nil {
 		fmt.Println("Ошибка при выполнении запроса на удаление:", err)

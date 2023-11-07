@@ -56,10 +56,8 @@ func (redisRepo *SessionRepo) CheckActiveSession(sid string) bool {
 }
 
 func (redisRepo *SessionRepo) DeleteSession(sid string) bool {
-	// Создание контекста
 	ctx := context.Background()
 
-	// Выполнение запроса на удаление
 	result, err := redisRepo.sessionRedisClient.Del(ctx, sid).Result()
 	if err != nil {
 		fmt.Println("Ошибка при выполнении запроса на удаление:", err)

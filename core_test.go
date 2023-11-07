@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -34,20 +33,38 @@ func TestCreateUserAccount(t *testing.T) {
 	}
 }
 
+func TestCreateAndCheckCsrf(t *testing.T) {
+	testCore := Core{
+		csrfTokens: CsrfRepo{
+			csrfRedisClient: redis.NewClient(&redis.Options{
+				Addr:     "localhost:6379",
+				Password: "",
+				DB:       1,
+			}),
+			Connection: true,
+		}}
+
+	sid := testCore.CreateCsrfToken()
+
+	isFound := testCore.CheckCsrfToken(sid)
+	if !isFound {
+		t.Errorf("csrf not found")
+	}
+}
+
 func TestCreateAndKillSession(t *testing.T) {
 	login := "testLogin"
 	testCore := Core{
 		sessions: SessionRepo{
 			sessionRedisClient: redis.NewClient(&redis.Options{
-				Addr:     "localhost:6379", // адрес и порт Redis сервера
-				Password: "",               // пароль, если требуется
-				DB:       0,                // номер базы данных
+				Addr:     "localhost:6379",
+				Password: "",
+				DB:       0,
 			}),
 			Connection: true,
 		}}
 
 	sid, _, _ := testCore.CreateSession(login)
-	fmt.Println(sid)
 	isFound, _ := testCore.FindActiveSession(sid)
 	if !isFound {
 		t.Errorf("session not found")
