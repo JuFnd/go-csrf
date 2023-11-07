@@ -19,6 +19,7 @@ func main() {
 				Password: "",               // пароль, если требуется
 				DB:       0,                // номер базы данных
 			}),
+			Connection: true,
 		},
 		csrfTokens: CsrfRepo{
 			csrfRedisClient: redis.NewClient(&redis.Options{
@@ -26,6 +27,7 @@ func main() {
 				Password: "",               // пароль, если требуется
 				DB:       1,                // номер базы данных
 			}),
+			Connection: true,
 		},
 		users: make(map[string]User),
 		collections: map[string]string{
