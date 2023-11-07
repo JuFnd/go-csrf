@@ -13,21 +13,24 @@ import (
 	"github.com/go-park-mail-ru/2023_2_Vkladyshi/repository/comment"
 	"github.com/go-park-mail-ru/2023_2_Vkladyshi/repository/crew"
 	"github.com/go-park-mail-ru/2023_2_Vkladyshi/repository/film"
+	"github.com/go-park-mail-ru/2023_2_Vkladyshi/repository/csrf"
 	"github.com/go-park-mail-ru/2023_2_Vkladyshi/repository/genre"
 	"github.com/go-park-mail-ru/2023_2_Vkladyshi/repository/profession"
 	"github.com/go-park-mail-ru/2023_2_Vkladyshi/repository/profile"
+	"github.com/go-park-mail-ru/2023_2_Vkladyshi/repository/session"
 )
 
 type Core struct {
-	sessions   map[string]Session
+	sessions   session.SessionRepo
+	csrfTokens csrf.CsrfRepo
 	mutex      sync.RWMutex
 	lg         *slog.Logger
-	films      film.IFilmsRepo
-	users      profile.IUserRepo
-	genres     genre.IGenreRepo
-	comments   comment.ICommentRepo
-	crew       crew.ICrewRepo
-	profession profession.IProfessionRepo
+	Films      film.IFilmsRepo
+	Users      profile.IUserRepo
+	Genres     genre.IGenreRepo
+	Comments   comment.ICommentRepo
+	Crew       crew.ICrewRepo
+	Profession profession.IProfessionRepo
 }
 
 type Session struct {
