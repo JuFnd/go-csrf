@@ -69,6 +69,22 @@ func (redisRepo *SessionRepo) AddSession(active Session, lg *slog.Logger) (bool,
 	return sessionAdded, nil
 }
 
+func (redisRepo *SessionRepo) GetUserLogin(sid string, lg *slog.Logger) (string, error) {
+	if !redisRepo.Connection {
+		lg.Error("Redis session connection lost")
+		return "", nil
+	}
+
+	ctx := context.Background()
+	value, err := redisRepo.sessionRedisClient.Get(ctx, sid).Result()
+	if err != nil {
+		lg.Error("Error, cannot find session " + sid)
+		return "", err
+	}
+
+	return value, nil
+}
+
 func (redisRepo *SessionRepo) CheckActiveSession(sid string, lg *slog.Logger) (bool, error) {
 	if !redisRepo.Connection {
 		lg.Error("Redis session connection lost")

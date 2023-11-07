@@ -98,6 +98,18 @@ func (core *Core) CreateCsrfToken() (string, error) {
 	return sid, nil
 }
 
+func (core *Core) GetUserName(sid string, lg *slog.Logger) (string, error) {
+	core.mutex.RLock()
+	login, err := core.sessions.GetUserLogin(sid, lg)
+	core.mutex.RUnlock()
+
+	if err != nil {
+		return "", err
+	}
+
+	return login, nil
+}
+
 func (core *Core) CreateSession(login string) (string, session.Session, error) {
 	sid := RandStringRunes(32)
 

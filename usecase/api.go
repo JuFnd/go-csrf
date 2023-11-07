@@ -128,6 +128,15 @@ func (a *API) Signin(w http.ResponseWriter, r *http.Request) {
 		a.SendResponse(w, response)
 		return
 	}
+	csrfToken := r.Header.Get("x-csrf-token")
+
+	found, err := a.core.CheckCsrfToken(csrfToken)
+	if !found || err != nil {
+		response.Status = 412
+		a.SendResponse(w, response)
+		return
+	}
+
 	var request SigninRequest
 
 	body, err := io.ReadAll(r.Body)
@@ -177,6 +186,15 @@ func (a *API) Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	csrfToken := r.Header.Get("x-csrf-token")
+
+	found, err_token := a.core.CheckCsrfToken(csrfToken)
+	if !found || err_token != nil {
+		response.Status = 412
+		a.SendResponse(w, response)
+		return
+	}
+
 	var request SignupRequest
 
 	body, err := io.ReadAll(r.Body)
@@ -193,8 +211,8 @@ func (a *API) Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	found, err := a.core.FindUserByLogin(request.Login)
-	if err != nil {
+	found, err_find := a.core.FindUserByLogin(request.Login)
+	if err_find != nil {
 		a.lg.Error("Signup error", "err", err.Error())
 		response.Status = http.StatusInternalServerError
 		a.SendResponse(w, response)
