@@ -30,4 +30,5 @@ type ICore interface {
 	GetActorsCareer(actorId uint64) ([]profession.ProfessionItem, error)
 	AddComment(filmId uint64, userId uint64, rating uint16, text string) (bool, error)
 	CheckCsrfToken(sid string) (bool, error)
+	CreateCsrfToken() (string, error)
 }
