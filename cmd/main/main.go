@@ -32,6 +32,7 @@ func main() {
 	mx.HandleFunc("/api/v1/actor", api.Actor)
 	mx.HandleFunc("/api/v1/comment", api.Comment)
 	mx.HandleFunc("/api/v1/comment/add", api.AddComment)
+	mx.HandleFunc("/api/v1/csrf", api.GetCsrfToken)
 	err = http.ListenAndServe(":8080", mx)
 	if err != nil {
 		lg.Error("ListenAndServe error", "err", err.Error())
