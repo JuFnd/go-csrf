@@ -1,0 +1,6 @@
+{"time":"2023-11-07T21:14:41.768476386+03:00","level":"ERROR","msg":"sql ping error","err":"dial tcp 127.0.0.1:5432: connect: connection refused"}
+{"time":"2023-11-07T21:14:41.768613208+03:00","level":"ERROR","msg":"sql ping error","err":"dial tcp 127.0.0.1:5432: connect: connection refused"}
+{"time":"2023-11-07T21:14:41.768756994+03:00","level":"ERROR","msg":"sql ping error","err":"dial tcp 127.0.0.1:5432: connect: connection refused"}
+{"time":"2023-11-07T21:14:41.768805594+03:00","level":"ERROR","msg":"sql ping error","err":"dial tcp 127.0.0.1:5432: connect: connection refused"}
+{"time":"2023-11-07T21:14:41.768862363+03:00","level":"ERROR","msg":"sql ping error","err":"dial tcp 127.0.0.1:5432: connect: connection refused"}
+{"time":"2023-11-07T21:14:41.768966421+03:00","level":"ERROR","msg":"sql ping error","err":"dial tcp 127.0.0.1:5432: connect: connection refused"}
