@@ -54,17 +54,13 @@ func (redisRepo *CsrfRepo) AddCsrf(active Csrf, lg *slog.Logger) (bool, error) {
 	}
 
 	ctx := context.Background()
-	err := redisRepo.csrfRedisClient.Set(ctx, active.SID, active.SID, 3*time.Hour)
-	if err != nil {
-		lg.Error("Error, cannot create csrf token ", err.Err())
-		return false, err.Err()
-	}
+	redisRepo.csrfRedisClient.Set(ctx, active.SID, active.SID, 3*time.Hour)
 
 	csrfAdded, err_check := redisRepo.CheckActiveCsrf(active.SID, lg)
 
 	if err_check != nil {
 		lg.Error("Error, cannot create csrf token " + err_check.Error())
-		return false, err.Err()
+		return false, err_check
 	}
 
 	return csrfAdded, nil

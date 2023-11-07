@@ -54,11 +54,7 @@ func (redisRepo *SessionRepo) AddSession(active Session, lg *slog.Logger) (bool,
 	}
 
 	ctx := context.Background()
-	err := redisRepo.sessionRedisClient.Set(ctx, active.SID, active.Login, 24*time.Hour)
-	if err != nil {
-		lg.Error("Error, cannot create session " + active.SID)
-		return false, err.Err()
-	}
+	redisRepo.sessionRedisClient.Set(ctx, active.SID, active.Login, 24*time.Hour)
 
 	sessionAdded, err_check := redisRepo.CheckActiveSession(active.SID, lg)
 

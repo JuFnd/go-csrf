@@ -98,9 +98,9 @@ func (core *Core) CreateCsrfToken() (string, error) {
 	return sid, nil
 }
 
-func (core *Core) GetUserName(sid string, lg *slog.Logger) (string, error) {
+func (core *Core) GetUserName(sid string) (string, error) {
 	core.mutex.RLock()
-	login, err := core.sessions.GetUserLogin(sid, lg)
+	login, err := core.sessions.GetUserLogin(sid, core.lg)
 	core.mutex.RUnlock()
 
 	if err != nil {
