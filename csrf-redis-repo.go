@@ -19,9 +19,9 @@ type Csrf struct {
 }
 
 func (redisRepo *CsrfRepo) AddCsrf(active Csrf) bool {
-	if !redisRepo.Connection {
-		return false
-	}
+	// if !redisRepo.Connection {
+	// 	return false
+	// }
 
 	ctx := context.Background()
 	redisRepo.csrfRedisClient.Set(ctx, active.SID, active.SID, 3*time.Hour)
@@ -32,9 +32,9 @@ func (redisRepo *CsrfRepo) AddCsrf(active Csrf) bool {
 }
 
 func (redisRepo *CsrfRepo) CheckActiveCsrf(sid string) bool {
-	if !redisRepo.Connection {
-		return false
-	}
+	// if !redisRepo.Connection {
+	// 	return false
+	// }
 
 	ctx := context.Background()
 
