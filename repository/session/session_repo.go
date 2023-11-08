@@ -3,31 +3,35 @@ package session
 import (
 	"context"
 	"log/slog"
+	"sync"
 	"time"
 
+	"github.com/go-park-mail-ru/2023_2_Vkladyshi/configs"
 	"github.com/go-redis/redis/v8"
 )
 
 type SessionRepo struct {
 	sessionRedisClient *redis.Client
+	mutex              sync.RWMutex
 	Connection         bool
 }
 
-func (redisRepo *SessionRepo) CheckRedisSessionConnection() {
+func (redisRepo *SessionRepo) CheckRedisSessionConnection(sessionCfg configs.DbRedisCfg) {
 	ctx := context.Background()
 	for {
 		_, err := redisRepo.sessionRedisClient.Ping(ctx).Result()
+		redisRepo.mutex.Lock()
 		redisRepo.Connection = err == nil
-
-		time.Sleep(15 * time.Second)
+		redisRepo.mutex.Unlock()
+		time.Sleep(time.Duration(sessionCfg.Timer) * time.Second)
 	}
 }
 
-func GetSessionRepo(lg *slog.Logger) (*SessionRepo, error) {
+func GetSessionRepo(sessionCfg configs.DbRedisCfg, lg *slog.Logger) (*SessionRepo, error) {
 	redisClient := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
+		Addr:     sessionCfg.Host,
+		Password: sessionCfg.Password,
+		DB:       sessionCfg.DbNumber,
 	})
 
 	ctx := context.Background()
@@ -42,7 +46,7 @@ func GetSessionRepo(lg *slog.Logger) (*SessionRepo, error) {
 		Connection:         true,
 	}
 
-	go sessionRepo.CheckRedisSessionConnection()
+	go sessionRepo.CheckRedisSessionConnection(sessionCfg)
 
 	return &sessionRepo, nil
 }

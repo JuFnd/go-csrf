@@ -32,7 +32,7 @@ func TestGetFilmGenres(t *testing.T) {
 		WillReturnRows(rows)
 
 	repo := &RepoPostgre{
-		DB: db,
+		db: db,
 	}
 
 	genres, err := repo.GetFilmGenres(1)

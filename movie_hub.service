@@ -1,0 +1,12 @@
+[Unit]
+Description=TP project kinopoisk by vkladishy
+Wants=network-online.target
+After=network.target network-online.target
+
+[Service]
+Type=Simple
+ExecStart=/home/ubuntu/movie_hub
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
